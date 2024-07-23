@@ -4,6 +4,8 @@ use clap::Parser;
 use config::{Config, ConfigError, File};
 use serde::Deserialize;
 
+use crate::client::ClientConfig;
+
 #[derive(Debug, Clone, Parser)]
 #[command(name = "Hellvents")]
 pub struct CliConfig {
@@ -13,15 +15,9 @@ pub struct CliConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct FileConfig {
-    pub wise: WiseConfig,
+    pub wise: ClientConfig,
 
     pub admin: AdminConfig,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct WiseConfig {
-    pub address: String,
-    pub token: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
