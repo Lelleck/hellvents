@@ -103,7 +103,7 @@ impl MeleeMania {
         let announce_info = format!(
             "HELLVENTS | INFO\n
 The mini game MELEE MANIA will start in {}. \
-For {} only the use of melee weapons is permitted.\n
+For a period of {}, only melee weapons will be allowed.\n
 You will receive a message when the mini game has started and ended.\n
 Invalid kills result in penalities!",
             humantime::format_duration(self.config.delay),
@@ -113,7 +113,7 @@ Invalid kills result in penalities!",
         let announce_start = format!(
             "HELLVENTS | START\n
 The mini game MELEE MANIA has started. \
-For {} only the use of melee weapons is permitted.\n
+For a period of {}, only melee weapons will be allowed.\n
 You will receive a message when the mini game has ended.\n
 Invalid kills result in penalities!",
             humantime::format_duration(self.config.duration)
@@ -185,7 +185,7 @@ Thanks for participating."
         {
             let message = format!(
                 "HELLVENTS | RUNNING\n\nThe mini game MELEE MANIA is currently running.\n
-For {} only the use of melee weapons is permitted. 
+For a period of {}, only melee weapons will be allowed.\n
 You will receive a message when the mini game has ended.\n
 Invalid kills result in penalities!",
                 humantime::format_duration(self.end.duration_since(Instant::now()))
@@ -233,6 +233,7 @@ Invalid kills result in penalities!",
     }
 }
 
+#[derive(Debug)]
 enum PenaltyKind {
     Punish,
     Kick,
@@ -256,6 +257,10 @@ impl PenaltyKind {
             PenaltyKind::Kick => format!("Kick {} {}", ctx.0.name, message),
         };
 
+        debug!(
+            "Enforcing penalty {:?} for {:?} for the use of {}",
+            self, &ctx.0, &ctx.1
+        );
         transceiver
             .execute(CommandRequestKind::Raw {
                 command,

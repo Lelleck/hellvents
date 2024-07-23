@@ -33,6 +33,7 @@ We think the concept has potential but still aren't sure how to use it and befor
 That's why this test today to allow you to experience it live and give us feedback and new ideas. \
 If you want to say anything be that feedback, your vision, or anything else regarding the matter you can post messages into chat or discuss the matter on the discord server.\n
 Have fun!
+- Fachi & The Admin Team
             ".to_string();
 
         broadcast_message(&mut self.transceiver, message).await;

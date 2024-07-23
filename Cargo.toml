@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+wise_api = { git = "https://github.com/Lelleck/wise.git", branch = "dev" }
+
 async-trait = "0.1.81"
 clap = { version = "4.5.9", features = ["derive"] }
 config = "0.14.0"
@@ -21,4 +23,3 @@ tokio-tungstenite = { version = "0.23.1", features = ["rustls-tls-native-roots"]
 tokio-util = "0.7.11"
 trait-variant = "0.1.2"
 uuid = { version = "1.10.0", features = ["v4"] }
-wise_api = { git = "https://github.com/Lelleck/wise.git", branch = "dev" }

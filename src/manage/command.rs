@@ -12,15 +12,18 @@ pub struct HellventCommand {
 #[derive(Subcommand)]
 pub enum ChatSubcommand {
     // Status,
+    #[clap(aliases = ["s"])]
     Start {
         #[command(subcommand)]
         event: StartEvent,
     },
+    #[clap(aliases = ["e"])]
     End,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum StartEvent {
+    #[clap(aliases = ["mm"])]
     MeleeMania {
         /// The amount of time the starting of the event should be delayed from the annoucement.
         #[clap(default_value = "2m", value_parser = humantime::parse_duration)]
@@ -30,5 +33,6 @@ pub enum StartEvent {
         #[clap(default_value = "5m", value_parser = humantime::parse_duration)]
         duration: Duration,
     },
+    #[clap(aliases = ["np"])]
     NotifyPlayers,
 }
