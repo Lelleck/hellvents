@@ -12,7 +12,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use wise_api::{
     events::RconEvent,
-    messages::{CommandRequestKind, ServerWsMessage},
+    messages::ServerWsMessage,
     rcon::parsing::{
         showlog::{LogKind, LogLine},
         Player, PlayerId,
@@ -20,7 +20,7 @@ use wise_api::{
 };
 
 use crate::{
-    client::{broadcast_message, send_message, WsTransceiver},
+    client::{WsTransceiver, WsTransceiverExt},
     manage::command::StartEvent,
     messages::melee_mania::*,
 };
@@ -120,13 +120,13 @@ impl MeleeMania {
         let announce_end = end_message();
 
         debug!("Broadcasting info message");
-        broadcast_message(&mut self.transceiver, announce_info).await;
+        self.transceiver.broadcast_message(&announce_info).await;
         tokio::select! {
             _ = sleep(self.config.delay) => {},
             _ = self.token.cancelled() => return,
         };
         debug!("Broadcasting start message");
-        broadcast_message(&mut self.transceiver, announce_start).await;
+        self.transceiver.broadcast_message(&announce_start).await;
 
         self.transceiver.clear().await;
         info!(
@@ -161,7 +161,7 @@ impl MeleeMania {
 
         self.token.cancel();
         debug!("Broadcasting end message");
-        broadcast_message(&mut self.transceiver, announce_end).await;
+        self.transceiver.broadcast_message(&announce_end).await;
     }
 
     async fn handle_rcon_event(&mut self, rcon_event: RconEvent) {
@@ -178,7 +178,7 @@ impl MeleeMania {
         } = log
         {
             let message = running_message(&self.end.duration_since(Instant::now()));
-            send_message(&mut self.transceiver, &player.id, &message).await;
+            self.transceiver.message_player(&player.id, &message).await;
             return;
         }
 
@@ -230,7 +230,7 @@ enum PenaltyKind {
 
 impl PenaltyKind {
     pub async fn execute(&self, ctx: &PenaltyContext, transceiver: &mut WsTransceiver) {
-        let message = match self {
+        let killer_text = match self {
             PenaltyKind::Punish => format!(
                 "\"Your kill with {} violated the melee only rule. You may only use your melee weapon during this event.\"",
                 ctx.weapon
@@ -241,12 +241,7 @@ impl PenaltyKind {
             ),
         };
 
-        let penalty_command = match self {
-            PenaltyKind::Punish => format!("Punish {} {}", ctx.killer.name, message),
-            PenaltyKind::Kick => format!("Kick {} {}", ctx.killer.name, message),
-        };
-
-        let info_text = match self {
+        let victim_text = match self {
             PenaltyKind::Punish => format!(
                 "Your killer {} has been redeployed for killing you with {}.",
                 ctx.killer.name, ctx.weapon
@@ -262,13 +257,15 @@ impl PenaltyKind {
             self, &ctx.killer, &ctx.weapon
         );
 
+        match self {
+            PenaltyKind::Punish => transceiver.punish_player(&ctx.killer.name, &killer_text),
+            PenaltyKind::Kick => transceiver.kick_player(&ctx.killer.name, &killer_text),
+        }
+        .await;
+
         transceiver
-            .execute(CommandRequestKind::Raw {
-                command: penalty_command,
-                long_response: false,
-            })
+            .message_player(&ctx.victim.id, &victim_text)
             .await;
-        send_message(transceiver, &ctx.victim.id, &info_text).await;
     }
 }
 

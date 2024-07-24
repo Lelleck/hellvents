@@ -159,11 +159,54 @@ impl WsTransceiver {
     }
 }
 
-pub async fn send_message(transceiver: &mut WsTransceiver, id: &PlayerId, message: &str) {
-    let command = format!("Message {} {}", id.to_string(), message);
+#[async_trait::async_trait]
+pub trait WsTransceiverExt {
+    async fn message_player(&mut self, id: &PlayerId, message: &str);
+    async fn broadcast_message(&mut self, message: &str);
+    async fn punish_player(&mut self, player_name: &str, reason: &str);
+    async fn kick_player(&mut self, player_name: &str, reason: &str);
+    async fn execute_raw(&mut self, command: String);
+}
 
-    transceiver
-        .send(ClientWsMessage::Request {
+#[async_trait::async_trait]
+impl WsTransceiverExt for WsTransceiver {
+    async fn message_player(&mut self, id: &PlayerId, message: &str) {
+        let command = format!("Message {} {}", id.to_string(), message);
+        self.execute_raw(command).await;
+    }
+
+    async fn broadcast_message(&mut self, message: &str) {
+        let players = self
+            .request(ClientWsRequest::Execute(CommandRequestKind::GetPlayerIds))
+            .await
+            .unwrap();
+
+        let ServerWsResponse::Execute {
+            failure: _,
+            response: Some(CommandResponseKind::GetPlayerIds(players)),
+        } = players
+        else {
+            return;
+        };
+
+        for player in players {
+            let command = format!("Message {} {}", player.id.to_string(), message);
+            self.execute_raw(command).await;
+        }
+    }
+
+    async fn punish_player(&mut self, player_name: &str, message: &str) {
+        let command = format!("Punish {} {}", player_name, message);
+        self.execute_raw(command).await;
+    }
+
+    async fn kick_player(&mut self, player_name: &str, reason: &str) {
+        let command = format!("Punish {} {}", player_name, reason);
+        self.execute_raw(command).await;
+    }
+
+    async fn execute_raw(&mut self, command: String) {
+        self.send(ClientWsMessage::Request {
             id: None,
             value: ClientWsRequest::Execute(CommandRequestKind::Raw {
                 command,
@@ -171,33 +214,6 @@ pub async fn send_message(transceiver: &mut WsTransceiver, id: &PlayerId, messag
             }),
         })
         .await;
-}
-
-pub async fn broadcast_message(transceiver: &mut WsTransceiver, message: String) {
-    let players = transceiver
-        .request(ClientWsRequest::Execute(CommandRequestKind::GetPlayerIds))
-        .await
-        .unwrap();
-
-    let ServerWsResponse::Execute {
-        failure: _,
-        response: Some(CommandResponseKind::GetPlayerIds(players)),
-    } = players
-    else {
-        return;
-    };
-
-    for player in players {
-        let command = format!("Message {} {}", player.id.to_string(), message);
-        transceiver
-            .send(ClientWsMessage::Request {
-                id: None,
-                value: ClientWsRequest::Execute(CommandRequestKind::Raw {
-                    command,
-                    long_response: false,
-                }),
-            })
-            .await;
     }
 }
 

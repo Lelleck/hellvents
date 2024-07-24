@@ -40,6 +40,15 @@ Invalid kills result in penalities!
         )
     }
 
+    pub fn status_message(remaining: &Duration) -> String {
+        format!(
+            "HELLVENTS | STATUS\n\n
+The mini game MELEE MANIA is still running. There is {} left.\n
+So far ",
+            humantime::format_duration(*remaining)
+        )
+    }
+
     pub fn end_message() -> String {
         format!(
             "HELLVENTS | END\n

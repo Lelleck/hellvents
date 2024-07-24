@@ -1,4 +1,4 @@
-use crate::client::{broadcast_message, WsTransceiver};
+use crate::client::{WsTransceiver, WsTransceiverExt};
 
 use super::Event;
 
@@ -36,6 +36,6 @@ Have fun!
 - Fachi & The Admin Team
             ".to_string();
 
-        broadcast_message(&mut self.transceiver, message).await;
+        self.transceiver.broadcast_message(&message).await;
     }
 }
