@@ -33,6 +33,4 @@ pub enum StartEvent {
         #[clap(default_value = "5m", value_parser = humantime::parse_duration)]
         duration: Duration,
     },
-    #[clap(aliases = ["np"])]
-    NotifyPlayers,
 }

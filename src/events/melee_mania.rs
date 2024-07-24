@@ -166,12 +166,12 @@ impl MeleeMania {
 
     async fn handle_rcon_event(&mut self, rcon_event: RconEvent) {
         match rcon_event {
-            RconEvent::Log(LogLine { timestamp: _, kind }) => self.handle_kill(&kind).await,
+            RconEvent::Log(LogLine { timestamp: _, kind }) => self.handle_log(&kind).await,
             _ => return,
         }
     }
 
-    async fn handle_kill(&mut self, log: &LogKind) {
+    async fn handle_log(&mut self, log: &LogKind) {
         if let LogKind::Connect {
             player,
             connect: true,

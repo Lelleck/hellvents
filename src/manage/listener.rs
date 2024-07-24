@@ -17,7 +17,6 @@ use crate::{
     config::FileConfig,
     events::{
         melee_mania::{MeleeMania, MeleeManiaConfig},
-        notify_players::NotifyPlayers,
         Event,
     },
     manage::command::ChatSubcommand,
@@ -122,7 +121,6 @@ impl CommandListener {
                 MeleeManiaConfig::from_config(&event),
                 self.transceiver.clone(),
             )),
-            StartEvent::NotifyPlayers => Box::new(NotifyPlayers::new(self.transceiver.clone())),
         };
 
         event.start();

@@ -1,5 +1,4 @@
 pub mod melee_mania;
-pub mod notify_players;
 
 pub trait Event {
     fn start(&self);
