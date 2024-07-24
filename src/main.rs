@@ -2,6 +2,7 @@ pub mod client;
 pub mod config;
 pub mod events;
 pub mod manage;
+pub mod messages;
 
 use client::WsTransceiver;
 pub use config::{parse_config, FileConfig};
@@ -22,13 +23,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let config = parse_config()?;
     debug!("Initialized file config");
     let transceiver = WsTransceiver::connect(&config.wise).await?;
-
     debug!("Succesfully connected to wise");
-    run_manager(config, transceiver).await
-}
 
-async fn run_manager(config: FileConfig, transceiver: WsTransceiver) -> Result<(), Box<dyn Error>> {
     let mut handler = CommandListener::new(config, transceiver);
-    handler.run().await?;
-    Ok(())
+    handler.run().await
 }

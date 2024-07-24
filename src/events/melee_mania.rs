@@ -22,6 +22,7 @@ use wise_api::{
 use crate::{
     client::{broadcast_message, send_message, WsTransceiver},
     manage::command::StartEvent,
+    messages::melee_mania::*,
 };
 
 use super::Event;
@@ -67,7 +68,21 @@ pub struct MeleeMania {
     transceiver: WsTransceiver,
 }
 
-struct PenaltyContext(Player, String);
+struct PenaltyContext {
+    killer: Player,
+    victim: Player,
+    weapon: String,
+}
+
+impl PenaltyContext {
+    fn new(killer: Player, victim: Player, weapon: String) -> Self {
+        Self {
+            killer,
+            victim,
+            weapon,
+        }
+    }
+}
 
 impl Event for MeleeMania {
     fn start(&self) {
@@ -100,30 +115,9 @@ impl MeleeMania {
     async fn run(mut self) {
         info!("Starting Melee Mania with config {:?}", self.config);
 
-        let announce_info = format!(
-            "HELLVENTS | INFO\n
-The mini game MELEE MANIA will start in {}. \
-For a period of {}, only melee weapons will be allowed.\n
-You will receive a message when the mini game has started and ended.\n
-Invalid kills result in penalities!",
-            humantime::format_duration(self.config.delay),
-            humantime::format_duration(self.config.duration)
-        );
-
-        let announce_start = format!(
-            "HELLVENTS | START\n
-The mini game MELEE MANIA has started. \
-For a period of {}, only melee weapons will be allowed.\n
-You will receive a message when the mini game has ended.\n
-Invalid kills result in penalities!",
-            humantime::format_duration(self.config.duration)
-        );
-
-        let announce_end = format!(
-            "HELLVENTS | END\n
-The mini game MELEE MANIA has ended.\n
-Thanks for participating."
-        );
+        let announce_info = info_message(&self.config.delay, &self.config.duration);
+        let announce_start = start_message(&self.config.duration);
+        let announce_end = end_message();
 
         debug!("Broadcasting info message");
         broadcast_message(&mut self.transceiver, announce_info).await;
@@ -183,13 +177,7 @@ Thanks for participating."
             connect: true,
         } = log
         {
-            let message = format!(
-                "HELLVENTS | RUNNING\n\nThe mini game MELEE MANIA is currently running.\n
-For a period of {}, only melee weapons will be allowed.\n
-You will receive a message when the mini game has ended.\n
-Invalid kills result in penalities!",
-                humantime::format_duration(self.end.duration_since(Instant::now()))
-            );
+            let message = running_message(&self.end.duration_since(Instant::now()));
             send_message(&mut self.transceiver, &player.id, &message).await;
             return;
         }
@@ -197,7 +185,7 @@ Invalid kills result in penalities!",
         let LogKind::Kill {
             killer,
             killer_faction: _,
-            victim: _,
+            victim,
             victim_faction: _,
             is_teamkill: _,
             weapon,
@@ -207,10 +195,11 @@ Invalid kills result in penalities!",
         };
 
         if is_weapon_melee(&weapon) {
+            debug!("Not punishing {:?} for the use of {}", &killer.id, weapon);
             return;
         }
 
-        let ctx = PenaltyContext(killer.clone(), weapon.clone());
+        let ctx = PenaltyContext::new(killer.clone(), victim.clone(), weapon.clone());
         self.calculate_penalty(&killer.id)
             .await
             .execute(&ctx, &mut self.transceiver)
@@ -244,35 +233,48 @@ impl PenaltyKind {
         let message = match self {
             PenaltyKind::Punish => format!(
                 "\"Your kill with {} violated the melee only rule. You may only use your melee weapon during this event.\"",
-                ctx.1
+                ctx.weapon
             ),
             PenaltyKind::Kick => format!(
                 "\"Your kill with {} violated the melee only rule. Due to previous infractions you have been kicked.\"",
-                ctx.1
+                ctx.weapon
             ),
         };
 
-        let command = match self {
-            PenaltyKind::Punish => format!("Punish {} {}", ctx.0.name, message),
-            PenaltyKind::Kick => format!("Kick {} {}", ctx.0.name, message),
+        let penalty_command = match self {
+            PenaltyKind::Punish => format!("Punish {} {}", ctx.killer.name, message),
+            PenaltyKind::Kick => format!("Kick {} {}", ctx.killer.name, message),
+        };
+
+        let info_text = match self {
+            PenaltyKind::Punish => format!(
+                "Your killer {} has been redeployed for killing you with {}.",
+                ctx.killer.name, ctx.weapon
+            ),
+            PenaltyKind::Kick => format!(
+                "Your killer {} has been kicked for killing you with {}.",
+                ctx.killer.name, ctx.weapon
+            ),
         };
 
         debug!(
             "Enforcing penalty {:?} for {:?} for the use of {}",
-            self, &ctx.0, &ctx.1
+            self, &ctx.killer, &ctx.weapon
         );
+
         transceiver
             .execute(CommandRequestKind::Raw {
-                command,
+                command: penalty_command,
                 long_response: false,
             })
             .await;
+        send_message(transceiver, &ctx.victim.id, &info_text).await;
     }
 }
 
 fn is_weapon_melee(name: &str) -> bool {
     let lower = name.to_lowercase();
-    let keywords = vec!["knife", "shovel", "spaten", "spade"]; // TODO:
+    let keywords = vec!["knife", "shovel", "spaten", "spade", "sykes"];
 
     keywords.iter().any(|word| lower.contains(word))
 }

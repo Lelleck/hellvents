@@ -103,7 +103,7 @@ impl WsTransceiver {
 
     pub async fn execute(&mut self, command: CommandRequestKind) {
         self.send(ClientWsMessage::Request {
-            id: String::default(),
+            id: None,
             value: ClientWsRequest::Execute(command),
         })
         .await;
@@ -113,7 +113,7 @@ impl WsTransceiver {
     pub async fn request(&mut self, request: ClientWsRequest) -> Option<ServerWsResponse> {
         let id = Uuid::new_v4().to_string();
         let message = ClientWsMessage::Request {
-            id: id.clone(),
+            id: Some(id.clone()),
             value: request,
         };
 
@@ -164,7 +164,7 @@ pub async fn send_message(transceiver: &mut WsTransceiver, id: &PlayerId, messag
 
     transceiver
         .send(ClientWsMessage::Request {
-            id: "".to_string(),
+            id: None,
             value: ClientWsRequest::Execute(CommandRequestKind::Raw {
                 command,
                 long_response: false,
@@ -191,7 +191,7 @@ pub async fn broadcast_message(transceiver: &mut WsTransceiver, message: String)
         let command = format!("Message {} {}", player.id.to_string(), message);
         transceiver
             .send(ClientWsMessage::Request {
-                id: "".to_string(),
+                id: None,
                 value: ClientWsRequest::Execute(CommandRequestKind::Raw {
                     command,
                     long_response: false,
