@@ -53,7 +53,11 @@ So far ",
         format!(
             "HELLVENTS | END\n
 The mini game MELEE MANIA has ended.\n
-Thanks for participating."
+Thanks for participating.\n
+-----\n
+Hellvents is open source and freely available for use, from the community for it.\n
+GitHub:
+https://github.com/Lelleck/hellvents"
         )
     }
 }
