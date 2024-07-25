@@ -40,24 +40,19 @@ Invalid kills result in penalities!
         )
     }
 
-    pub fn status_message(remaining: &Duration) -> String {
-        format!(
-            "HELLVENTS | STATUS\n\n
-The mini game MELEE MANIA is still running. There is {} left.\n
-So far ",
-            humantime::format_duration(*remaining)
-        )
-    }
-
     pub fn end_message() -> String {
         format!(
             "HELLVENTS | END\n
 The mini game MELEE MANIA has ended.\n
 Thanks for participating.\n
------\n
-Hellvents is open source and freely available for use, from the community for it.\n
+-----\n{}",
+            open_source_disclaimer()
+        )
+    }
+
+    pub fn open_source_disclaimer() -> &'static str {
+        "Hellvents is open source and freely available for use, from the community for it!\n
 GitHub:
 https://github.com/Lelleck/hellvents"
-        )
     }
 }

@@ -16,6 +16,7 @@ use crate::{
     client::WsTransceiver,
     config::FileConfig,
     events::{
+        build_event,
         melee_mania::{MeleeMania, MeleeManiaConfig},
         Event,
     },
@@ -113,16 +114,7 @@ impl CommandListener {
             current_event.stop();
         }
 
-        let event: Box<dyn Event> = match &event {
-            StartEvent::MeleeMania {
-                duration: _,
-                delay: _,
-            } => Box::new(MeleeMania::new(
-                MeleeManiaConfig::from_config(&event),
-                self.transceiver.clone(),
-            )),
-        };
-
+        let event = build_event(self.transceiver.clone(), &event);
         event.start();
         self.event = Some(event);
     }
