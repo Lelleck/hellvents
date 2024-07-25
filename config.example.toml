@@ -1,0 +1,10 @@
+[wise]
+# The address of the wise websocket endpoint.
+address = ""
+# The token to use to log in. Must enable raw command execution.
+token = ""
+
+[admin]
+# A list of player ids (Steam or Windows) as strings from which hellvents will 
+# accept commands. All other players are ignored. 
+admin_ids = []

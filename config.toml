@@ -1,8 +1,0 @@
-[wise]
-# The address of the wise server to use.
-address = ""
-# The token to use.
-token = ""
-
-[admin]
-admin_ids = []
