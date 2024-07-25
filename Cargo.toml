@@ -23,3 +23,5 @@ tokio-tungstenite = { version = "0.23.1", features = ["rustls-tls-native-roots"]
 tokio-util = "0.7.11"
 trait-variant = "0.1.2"
 uuid = { version = "1.10.0", features = ["v4"] }
+derive-new = "0.6.0"
+rand = "0.8.5"

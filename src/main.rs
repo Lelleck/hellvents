@@ -3,6 +3,7 @@ pub mod config;
 pub mod events;
 pub mod manage;
 pub mod messages;
+pub mod utils;
 
 use client::WsTransceiver;
 pub use config::{parse_config, FileConfig};

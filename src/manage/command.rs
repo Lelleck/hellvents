@@ -33,4 +33,15 @@ pub enum StartEvent {
         #[clap(default_value = "5m", value_parser = humantime::parse_duration)]
         duration: Duration,
     },
+
+    #[clap(skip)]
+    // #[clap(aliases = ["se"])]
+    SkyEye {
+        /// How many players are supposed to be given admin cam access per team.
+        #[clap(default_value = "5")]
+        cam_count: usize,
+    },
+
+    #[clap(aliases = ["rs"])]
+    RadioSpies {},
 }

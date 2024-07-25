@@ -17,7 +17,6 @@ use crate::{
     config::FileConfig,
     events::{
         build_event,
-        melee_mania::{MeleeMania, MeleeManiaConfig},
         Event,
     },
     manage::command::ChatSubcommand,

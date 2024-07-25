@@ -93,10 +93,6 @@ impl Event for MeleeMania {
     fn stop(&self) {
         self.token.cancel();
     }
-
-    fn is_stopped(&self) -> bool {
-        self.token.is_cancelled()
-    }
 }
 
 impl MeleeMania {

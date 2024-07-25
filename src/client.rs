@@ -23,7 +23,7 @@ use wise_api::{
         ClientWsMessage, ClientWsRequest, CommandRequestKind, CommandResponseKind, ServerWsMessage,
         ServerWsResponse,
     },
-    rcon::parsing::PlayerId,
+    rcon::parsing::{playerinfo::PlayerInfo, Player, PlayerId},
 };
 
 pub type RawWsClient = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -165,6 +165,8 @@ pub trait WsTransceiverExt {
     async fn broadcast_message(&mut self, message: &str);
     async fn punish_player(&mut self, player_name: &str, reason: &str);
     async fn kick_player(&mut self, player_name: &str, reason: &str);
+    async fn get_playerinfo(&mut self, id: &PlayerId) -> Option<PlayerInfo>;
+    async fn get_players(&mut self) -> Option<Vec<Player>>;
     async fn execute_raw(&mut self, command: String);
 }
 
@@ -203,6 +205,40 @@ impl WsTransceiverExt for WsTransceiver {
     async fn kick_player(&mut self, player_name: &str, reason: &str) {
         let command = format!("Punish {} {}", player_name, reason);
         self.execute_raw(command).await;
+    }
+
+    async fn get_playerinfo(&mut self, id: &PlayerId) -> Option<PlayerInfo> {
+        let response = self
+            .request(ClientWsRequest::Execute(CommandRequestKind::GetPlayerInfo(
+                id.to_string(),
+            )))
+            .await?;
+
+        let ServerWsResponse::Execute {
+            failure: _,
+            response: Some(CommandResponseKind::GetPlayerInfo(info)),
+        } = response
+        else {
+            return None;
+        };
+
+        info
+    }
+
+    async fn get_players(&mut self) -> Option<Vec<Player>> {
+        let response = self
+            .request(ClientWsRequest::Execute(CommandRequestKind::GetPlayerIds))
+            .await?;
+
+        let ServerWsResponse::Execute {
+            failure: _,
+            response: Some(CommandResponseKind::GetPlayerIds(players)),
+        } = response
+        else {
+            return None;
+        };
+
+        Some(players)
     }
 
     async fn execute_raw(&mut self, command: String) {
