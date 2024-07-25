@@ -45,7 +45,7 @@ impl Event for RadioSpies {
     }
 
     fn stop(&self) {
-        todo!()
+        self.ctx.token.cancel();
     }
 }
 

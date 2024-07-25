@@ -11,14 +11,20 @@ pub struct HellventCommand {
 
 #[derive(Subcommand)]
 pub enum ChatSubcommand {
-    // Status,
+    /// Start an event.
     #[clap(aliases = ["s"])]
     Start {
         #[command(subcommand)]
         event: StartEvent,
     },
+
+    /// End the current event.
     #[clap(aliases = ["e"])]
     End,
+
+    /// Immediately stop the hellvents application.
+    #[clap(aliases = ["eexit"])]
+    EmergencyExit,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]

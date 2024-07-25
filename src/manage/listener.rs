@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, process};
 
 use clap::Parser;
 use log::{debug, info};
@@ -15,10 +15,7 @@ use super::command::{HellventCommand, StartEvent};
 use crate::{
     client::WsTransceiver,
     config::FileConfig,
-    events::{
-        build_event,
-        Event,
-    },
+    events::{build_event, Event},
     manage::command::ChatSubcommand,
 };
 
@@ -92,6 +89,7 @@ impl CommandListener {
         match command.sub_command {
             ChatSubcommand::Start { event } => self.start_event(event),
             ChatSubcommand::End => self.stop_event(),
+            ChatSubcommand::EmergencyExit => process::exit(1),
         }
     }
 
