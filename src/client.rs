@@ -165,7 +165,7 @@ pub trait WsTransceiverExt {
     async fn broadcast_message(&mut self, message: &str);
     async fn punish_player(&mut self, player_name: &str, reason: &str);
     async fn kick_player(&mut self, player_name: &str, reason: &str);
-    async fn get_playerinfo(&mut self, id: &PlayerId) -> Option<PlayerInfo>;
+    async fn get_playerinfo(&mut self, name: String) -> Option<PlayerInfo>;
     async fn get_players(&mut self) -> Option<Vec<Player>>;
     async fn execute_raw(&mut self, command: String);
 }
@@ -207,10 +207,10 @@ impl WsTransceiverExt for WsTransceiver {
         self.execute_raw(command).await;
     }
 
-    async fn get_playerinfo(&mut self, id: &PlayerId) -> Option<PlayerInfo> {
+    async fn get_playerinfo(&mut self, name: String) -> Option<PlayerInfo> {
         let response = self
             .request(ClientWsRequest::Execute(CommandRequestKind::GetPlayerInfo(
-                id.to_string(),
+                name
             )))
             .await?;
 

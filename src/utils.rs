@@ -11,7 +11,7 @@ pub async fn get_players_with_team(transceiver: &mut WsTransceiver) -> Vec<(Play
     let player_infos = join_all(players.iter().map(|player| {
         let mut clone = transceiver.clone();
         async move {
-            clone.get_playerinfo(&player.id).await
+            clone.get_playerinfo(player.name.clone()).await
         }
     }))
     .await;

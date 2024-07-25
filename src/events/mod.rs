@@ -1,10 +1,12 @@
 use crate::{client::WsTransceiver, manage::command::StartEvent};
 use derive_new::new;
 use melee_mania::*;
+use radio_spies::RadioSpies;
 use sky_eye::*;
 use tokio_util::sync::CancellationToken;
 
 mod melee_mania;
+mod radio_spies;
 mod sky_eye;
 
 pub trait Event {
@@ -27,6 +29,6 @@ pub fn build_event(transceiver: WsTransceiver, start: &StartEvent) -> Box<dyn Ev
             ctx.transceiver,
         )),
         StartEvent::SkyEye { .. } => Box::new(SkyEye::new(SkyEyeConfig::from_config(start), ctx)),
-        StartEvent::RadioSpies {} => todo!(),
+        StartEvent::RadioSpies {} => Box::new(RadioSpies::new(ctx)),
     }
 }
