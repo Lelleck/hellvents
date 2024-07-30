@@ -4,6 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use clap::Args;
 use log::{debug, info};
 use tokio::{
     sync::Mutex,
@@ -21,16 +22,20 @@ use wise_api::{
 
 use crate::{
     client::{WsTransceiver, WsTransceiverExt},
-    manage::command::StartEvent,
     messages::melee_mania::*,
 };
 
 use super::Event;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Args, PartialEq, Eq)]
 pub struct MeleeManiaConfig {
-    duration: Duration,
+    /// The amount of time the starting of the event should be delayed from the annoucement.
+    #[clap(default_value = "2m", value_parser = humantime::parse_duration)]
     delay: Duration,
+
+    /// The time for which the mini game should last.
+    #[clap(default_value = "5m", value_parser = humantime::parse_duration)]
+    duration: Duration,
 }
 
 const FIVE_MINUTES: u64 = 60 * 5;
@@ -40,21 +45,6 @@ impl Default for MeleeManiaConfig {
         Self {
             duration: Duration::from_secs(FIVE_MINUTES),
             delay: Duration::from_secs(TWO_MINUTES),
-        }
-    }
-}
-
-impl MeleeManiaConfig {
-    pub fn from_config(config: &StartEvent) -> Self {
-        #[allow(irrefutable_let_patterns)]
-        let StartEvent::MeleeMania { duration, delay }: &StartEvent = config
-        else {
-            panic!("Tried to build config from invalid start event");
-        };
-
-        Self {
-            duration: duration.clone(),
-            delay: delay.clone(),
         }
     }
 }

@@ -1,6 +1,6 @@
-use std::time::Duration;
-
 use clap::{Parser, Subcommand};
+
+use crate::events::melee_mania::MeleeManiaConfig;
 
 #[derive(Parser)]
 #[command(version, about)]
@@ -30,15 +30,7 @@ pub enum ChatSubcommand {
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum StartEvent {
     #[clap(aliases = ["mm"])]
-    MeleeMania {
-        /// The amount of time the starting of the event should be delayed from the annoucement.
-        #[clap(default_value = "2m", value_parser = humantime::parse_duration)]
-        delay: Duration,
-
-        /// The time for which the mini game should last.
-        #[clap(default_value = "5m", value_parser = humantime::parse_duration)]
-        duration: Duration,
-    },
+    MeleeMania(MeleeManiaConfig),
 
     #[clap(skip)]
     // #[clap(aliases = ["se"])]

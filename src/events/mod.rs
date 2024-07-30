@@ -5,9 +5,9 @@ use radio_spies::RadioSpies;
 use sky_eye::*;
 use tokio_util::sync::CancellationToken;
 
-mod melee_mania;
-mod radio_spies;
-mod sky_eye;
+pub mod melee_mania;
+pub mod radio_spies;
+pub mod sky_eye;
 
 pub trait Event {
     fn start(&self);
@@ -24,10 +24,9 @@ pub fn build_event(transceiver: WsTransceiver, start: &StartEvent) -> Box<dyn Ev
     let ctx = EventContext::new(transceiver, Default::default());
 
     match start {
-        StartEvent::MeleeMania { .. } => Box::new(MeleeMania::new(
-            MeleeManiaConfig::from_config(start),
-            ctx.transceiver,
-        )),
+        StartEvent::MeleeMania(config) => {
+            Box::new(MeleeMania::new(config.clone(), ctx.transceiver))
+        }
         StartEvent::SkyEye { .. } => Box::new(SkyEye::new(SkyEyeConfig::from_config(start), ctx)),
         StartEvent::RadioSpies {} => Box::new(RadioSpies::new(ctx)),
     }
