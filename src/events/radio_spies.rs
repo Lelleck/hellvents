@@ -21,23 +21,55 @@ use std::{
 
 use derive_new::new;
 use log::{debug, info};
-use tokio::time::{self};
+use tokio::{
+    task::JoinHandle,
+    time::{self},
+};
+use tokio_util::sync::CancellationToken;
 use wise_api::{
     events::RconEvent,
     messages::ServerWsMessage,
     rcon::parsing::showlog::{LogKind, LogLine},
 };
 
-use crate::{client::WsTransceiverExt, utils::get_players_with_team};
+use crate::{
+    client::{WsTransceiver, WsTransceiverExt},
+    utils::get_players_with_team,
+};
 
-use super::{Event, EventContext};
+use super::EventHandle;
+
+pub struct RadioSpiesHandle {
+    token: CancellationToken,
+    join_handle: JoinHandle<()>,
+}
+
+impl EventHandle for RadioSpiesHandle {
+    fn stop(&self) {
+        self.token.cancel();
+    }
+
+    fn abort(&self) {
+        self.join_handle.abort();
+    }
+
+    fn short_info(&self) -> String {
+        "".to_string()
+    }
+
+    fn long_info(&self) -> String {
+        "".to_string()
+    }
+}
 
 #[derive(Clone)]
 pub struct RadioSpies {
-    ctx: EventContext,
+    transceiver: WsTransceiver,
+    token: CancellationToken,
     messages: HashMap<String, Vec<CachedMessage>>,
 }
 
+/*
 impl Event for RadioSpies {
     fn start(&self) {
         let clone = self.clone();
@@ -48,13 +80,19 @@ impl Event for RadioSpies {
         self.ctx.token.cancel();
     }
 }
+*/
 
 impl RadioSpies {
-    pub fn new(ctx: EventContext) -> Self {
-        Self {
-            ctx,
+    pub fn new(transceiver: WsTransceiver) -> Box<dyn EventHandle> {
+        let token = CancellationToken::new();
+        let event = Self {
+            transceiver,
+            token: token.clone(),
             messages: HashMap::new(),
-        }
+        };
+
+        let join_handle = tokio::spawn(event.run());
+        Box::new(RadioSpiesHandle { token, join_handle })
     }
 
     async fn run(mut self) {
@@ -65,7 +103,7 @@ impl RadioSpies {
 
         loop {
             tokio::select! {
-                _ = self.ctx.token.cancelled() => {
+                _ = self.token.cancelled() => {
                     info!("Cancellation detected -> Stopping");
                     return;
                 }
@@ -74,7 +112,7 @@ impl RadioSpies {
                     self.flush_cached_messages().await;
                 }
 
-                message = self.ctx.transceiver.receive() => {
+                message = self.transceiver.receive() => {
                     let ServerWsMessage::Rcon(event) = message else {
                         continue;
                     };
@@ -91,7 +129,7 @@ impl RadioSpies {
             team_messages.insert(team, build_collected_message(messages));
         }
 
-        let player_teams = get_players_with_team(&mut self.ctx.transceiver).await;
+        let player_teams = get_players_with_team(&mut self.transceiver).await;
         for (player, team) in player_teams {
             let Some(opposite_team) = opposite_team(&team) else {
                 continue;
@@ -101,10 +139,7 @@ impl RadioSpies {
                 continue;
             };
 
-            self.ctx
-                .transceiver
-                .message_player(&player.id, &message)
-                .await;
+            self.transceiver.message_player(&player.id, &message).await;
         }
 
         self.messages.clear();

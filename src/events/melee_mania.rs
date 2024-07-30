@@ -1,13 +1,12 @@
 use std::{
     collections::HashMap,
-    sync::Arc,
     time::{Duration, Instant},
 };
 
 use clap::Args;
 use log::{debug, info};
 use tokio::{
-    sync::Mutex,
+    sync::watch,
     time::{sleep, sleep_until},
 };
 use tokio_util::sync::CancellationToken;
@@ -25,7 +24,7 @@ use crate::{
     messages::melee_mania::*,
 };
 
-use super::Event;
+use super::{EventHandle, GenericEventHandle};
 
 #[derive(Debug, Clone, Args, PartialEq, Eq)]
 pub struct MeleeManiaConfig {
@@ -38,64 +37,36 @@ pub struct MeleeManiaConfig {
     duration: Duration,
 }
 
-const FIVE_MINUTES: u64 = 60 * 5;
-const TWO_MINUTES: u64 = 60 * 2 + 10;
-impl Default for MeleeManiaConfig {
-    fn default() -> Self {
-        Self {
-            duration: Duration::from_secs(FIVE_MINUTES),
-            delay: Duration::from_secs(TWO_MINUTES),
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct MeleeMania {
-    infractions: Arc<Mutex<HashMap<PlayerId, i32>>>,
+    infractions: HashMap<PlayerId, i32>,
     end: Instant,
-    config: Arc<MeleeManiaConfig>,
+    config: MeleeManiaConfig,
     token: CancellationToken,
     transceiver: WsTransceiver,
-}
-
-struct PenaltyContext {
-    killer: Player,
-    victim: Player,
-    weapon: String,
-}
-
-impl PenaltyContext {
-    fn new(killer: Player, victim: Player, weapon: String) -> Self {
-        Self {
-            killer,
-            victim,
-            weapon,
-        }
-    }
-}
-
-impl Event for MeleeMania {
-    fn start(&self) {
-        let clone = self.clone();
-        _ = tokio::spawn(clone.run());
-    }
-
-    fn stop(&self) {
-        self.token.cancel();
-    }
+    info_watch: watch::Sender<(String, String)>,
+    stats: MeleeManiaStats,
 }
 
 impl MeleeMania {
-    pub fn new(config: MeleeManiaConfig, transceiver: WsTransceiver) -> Self {
-        Self {
-            infractions: Default::default(),
+    pub fn new(config: MeleeManiaConfig, transceiver: WsTransceiver) -> Box<dyn EventHandle> {
+        let token = CancellationToken::new();
+        let (tx, rx) = watch::channel(("Not Started".to_string(), "Not Started".to_string()));
+
+        let event = Self {
+            infractions: HashMap::new(),
             end: Instant::now()
                 .checked_add(config.duration + config.delay)
                 .unwrap(),
-            config: Arc::new(config),
-            token: Default::default(),
+            config: config,
+            token: token.clone(),
             transceiver,
-        }
+            info_watch: tx,
+            stats: MeleeManiaStats::default(),
+        };
+
+        let join_handle = tokio::spawn(event.run());
+        Box::new(GenericEventHandle::new(token, join_handle, rx))
     }
 
     async fn run(mut self) {
@@ -137,12 +108,13 @@ impl MeleeMania {
 
                     self.handle_rcon_event(rcon_event).await;
                 }
+
             }
 
-            debug_assert!(
-                Arc::strong_count(&self.infractions) != 1,
-                "Orphaned thread detected"
-            );
+            let message = self.stats.build(&self);
+            self.info_watch
+                .send(message)
+                .expect("failed to send info over watch channel");
         }
 
         self.token.cancel();
@@ -181,24 +153,27 @@ impl MeleeMania {
         };
 
         if is_weapon_melee(&weapon) {
+            self.stats.inc_valid();
             debug!("Not punishing {:?} for the use of {}", &killer.id, weapon);
             return;
         }
 
         let ctx = PenaltyContext::new(killer.clone(), victim.clone(), weapon.clone());
-        self.calculate_penalty(&killer.id)
+        let penalty = self
+            .calculate_penalty(&killer.id)
             .await
             .execute(&ctx, &mut self.transceiver)
             .await;
+
+        self.stats.inc_penalty(&penalty);
     }
 
     async fn calculate_penalty(&mut self, id: &PlayerId) -> PenaltyKind {
-        let mut guard = self.infractions.lock().await;
-        if !guard.contains_key(id) {
-            guard.insert(id.clone(), 0);
+        if !self.infractions.contains_key(id) {
+            self.infractions.insert(id.clone(), 0);
         }
 
-        let count = guard.get_mut(id).unwrap();
+        let count = self.infractions.get_mut(id).unwrap();
         *count += 1;
 
         match count {
@@ -208,14 +183,75 @@ impl MeleeMania {
     }
 }
 
-#[derive(Debug)]
+#[derive(Default, Clone)]
+struct MeleeManiaStats {
+    punished_count: u32,
+    kicked_count: u32,
+    valid_kills: u32,
+}
+
+impl MeleeManiaStats {
+    fn build(&self, event: &MeleeMania) -> (String, String) {
+        (
+            format!(
+                "Remaining: {}, Punish/Kicks: {}/{}",
+                humantime::format_duration(event.end.duration_since(Instant::now())),
+                self.punished_count,
+                self.kicked_count
+            ),
+            format!(
+                "HELLVENTS | MELEE MANIA | STATUS
+
+Remaining: {}
+
+Punishments: {}, Kicks: {}
+
+Valid Kills: {}
+",
+                humantime::format_duration(event.end.duration_since(Instant::now())),
+                self.punished_count,
+                self.kicked_count,
+                self.valid_kills
+            ),
+        )
+    }
+
+    fn inc_penalty(&mut self, penalty: &PenaltyKind) {
+        match penalty {
+            PenaltyKind::Punish => self.punished_count += 1,
+            PenaltyKind::Kick => self.kicked_count += 1,
+        }
+    }
+
+    fn inc_valid(&mut self) {
+        self.valid_kills += 1;
+    }
+}
+
+struct PenaltyContext {
+    killer: Player,
+    victim: Player,
+    weapon: String,
+}
+
+impl PenaltyContext {
+    fn new(killer: Player, victim: Player, weapon: String) -> Self {
+        Self {
+            killer,
+            victim,
+            weapon,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 enum PenaltyKind {
     Punish,
     Kick,
 }
 
 impl PenaltyKind {
-    pub async fn execute(&self, ctx: &PenaltyContext, transceiver: &mut WsTransceiver) {
+    async fn execute(&self, ctx: &PenaltyContext, transceiver: &mut WsTransceiver) -> PenaltyKind {
         let killer_text = match self {
             PenaltyKind::Punish => format!(
                 "\"Your kill with {} violated the melee only rule. You may only use your melee weapon during this event.\"",
@@ -252,6 +288,8 @@ impl PenaltyKind {
         transceiver
             .message_player(&ctx.victim.id, &victim_text)
             .await;
+
+        self.clone()
     }
 }
 
