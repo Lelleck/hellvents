@@ -108,8 +108,8 @@ impl RadioSpies {
         }
 
         self.messages.clear();
-        self.messages.insert("Allies".to_string(), Vec::new());
-        self.messages.insert("Axis".to_string(), Vec::new());
+        // self.messages.insert("Allies".to_string(), Vec::new());
+        // self.messages.insert("Axis".to_string(), Vec::new());
         debug!("Flushed cached messages");
     }
 
@@ -160,18 +160,19 @@ impl Display for CachedMessage {
 }
 
 fn build_collected_message(messages: &Vec<CachedMessage>) -> String {
+    /*
     if messages.is_empty() {
         return "Intelligence has failed to gather any messages. It is upon you to tempt them to reveal vital information!".to_string();
     }
+    */
 
-    let mut base =
-        String::from_str("Intelligence has gathered the following messages\n---\n\n").unwrap();
+    let base =
+        String::from_str("Intelligence has gathered the following messages\n\n---\n\n").unwrap();
 
-    for message in messages.iter().rev() {
-        base.push_str(&format!("{}\n", message));
-    }
-
-    base
+    messages
+        .iter()
+        .rev()
+        .fold(base, |base, m| format!("{}\n{}", base, m))
 }
 
 fn opposite_team(team_in: &str) -> Option<&'static str> {
